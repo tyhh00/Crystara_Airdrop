@@ -376,4 +376,83 @@ module projectOwnerAdr::airdrop {
     public fun get_total_allocation<CoinType>(): u64 acquires AirdropStore {
         calculate_total_allocation<CoinType>()
     }
+
+    // Get all allocations for a user (claimed and unclaimed) with claim status
+    #[view]
+    public fun get_all_user_allocations<CoinType>(user: address): (vector<String>, vector<u64>, vector<bool>) acquires AirdropStore, ClaimRecord {
+        // Get airdrop store
+        let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
+        let allocations = &airdrop_store.allocations;
+        
+        // Prepare return vectors
+        let reasons = vector::empty<String>();
+        let amounts = vector::empty<u64>();
+        let claim_status = vector::empty<bool>(); // true = claimed, false = unclaimed
+        
+        // Get user claim record if it exists
+        let has_claim_record = exists<ClaimRecord<CoinType>>(user);
+        let claimed_reasons = vector::empty<String>();
+        
+        if (has_claim_record) {
+            let claim_record = borrow_global<ClaimRecord<CoinType>>(user);
+            claimed_reasons = *&claim_record.claimed_reasons;
+        };
+        
+        // For each allocation, check if it includes the user
+        let reasons_len = vector::length(&airdrop_store.allocations);
+        let i = 0;
+        
+        while (i < reasons_len) {
+            let allocation_with_reason = vector::borrow(&airdrop_store.allocations, i);
+            let reason = &allocation_with_reason.reason;
+            
+            // Check if this user has an allocation for this reason
+            if (table::contains(allocations, *reason)) {
+                let allocation = table::borrow(allocations, *reason);
+                
+                // Find user's allocation index
+                let addrs = &allocation.allocation.addresses;
+                let amts = &allocation.allocation.amounts;
+                let addrs_len = vector::length(addrs);
+                let j = 0;
+                
+                while (j < addrs_len) {
+                    let addr = vector::borrow(addrs, j);
+                    
+                    if (*addr == user) {
+                        let amt = vector::borrow(amts, j);
+                        
+                        // Add to results
+                        vector::push_back(&mut reasons, *reason);
+                        vector::push_back(&mut amounts, *amt);
+                        
+                        // Check if this reason has been claimed
+                        let is_claimed = false;
+                        
+                        if (has_claim_record) {
+                            let k = 0;
+                            let claimed_len = vector::length(&claimed_reasons);
+                            
+                            while (k < claimed_len) {
+                                let claimed_reason = vector::borrow(&claimed_reasons, k);
+                                if (*claimed_reason == *reason) {
+                                    is_claimed = true;
+                                    break
+                                };
+                                k = k + 1;
+                            };
+                        };
+                        
+                        vector::push_back(&mut claim_status, is_claimed);
+                    };
+                    
+                    j = j + 1;
+                };
+            };
+            
+            i = i + 1;
+        };
+        
+        (reasons, amounts, claim_status)
+    }
 }
