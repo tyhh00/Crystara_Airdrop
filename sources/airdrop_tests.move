@@ -19,13 +19,13 @@ module projectOwnerAdr::airdrop_tests {
     
     // Setup function for tests
     fun setup_test(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         project_owner: &signer,
         user1: &signer,
         user2: &signer
     ): (BurnCapability<TestCoin>, FreezeCapability<TestCoin>, MintCapability<TestCoin>) {
         // Initialize timestamp for testing
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         
         // Initialize test coin
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<TestCoin>(
@@ -54,10 +54,10 @@ module projectOwnerAdr::airdrop_tests {
     #[test]
     /// Test basic initialization of the airdrop module
     fun test_initialize() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        account::create_account_for_test(USER1);
+        account::create_account_for_test(USER2);
         
         // First initialize the TestCoin
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<TestCoin>(
@@ -88,12 +88,12 @@ module projectOwnerAdr::airdrop_tests {
     #[test]
     /// Test setting and overriding allocations
     fun test_set_allocation() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let supra_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&supra_framework, &project_owner, &user1, &user2);
         
         // Create address and amount vectors
         let addresses = vector::empty<address>();
@@ -138,12 +138,12 @@ module projectOwnerAdr::airdrop_tests {
     #[test]
     /// Test basic deposit and claim
     fun test_basic_claim() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let supra_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&supra_framework, &project_owner, &user1, &user2);
         
         // Set allocation for user1
         let addresses = vector::empty<address>();
@@ -177,16 +177,15 @@ module projectOwnerAdr::airdrop_tests {
     }
     
     #[test]
-    #[expected_failure(abort_code = 393221)]
-     // ENO_ALLOCATION error code
-    /// Test that a user cannot claim twice for the same reason
+    #[expected_failure(abort_code = 393221, location = projectOwnerAdr::airdrop)]
+    /// Test that a user cannot claim twice
     fun test_no_double_claim() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let supra_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&supra_framework, &project_owner, &user1, &user2);
         
         // Set allocation for user1
         let addresses = vector::empty<address>();
@@ -225,12 +224,12 @@ module projectOwnerAdr::airdrop_tests {
     #[test]
     /// Test claiming from multiple reasons
     fun test_multiple_reasons() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let supra_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&supra_framework, &project_owner, &user1, &user2);
         
         // Set allocation for user1 with reason1
         let addresses = vector::empty<address>();
@@ -280,12 +279,12 @@ module projectOwnerAdr::airdrop_tests {
     #[test]
     /// Test claiming new reasons after claiming existing ones
     fun test_claim_new_reasons() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let supra_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&supra_framework, &project_owner, &user1, &user2);
         
         // Set allocation for user1 with reason1
         let addresses = vector::empty<address>();
@@ -339,15 +338,15 @@ module projectOwnerAdr::airdrop_tests {
     }
     
     #[test]
-    #[expected_failure(abort_code = 393221)] // ENO_ALLOCATION error code
+    #[expected_failure(abort_code = 393221, location = projectOwnerAdr::airdrop)] // ENO_ALLOCATION error code
     /// Test that modifying an allocation doesn't allow a user to claim twice
     fun test_modified_allocation_no_double_claim() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let supra_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&supra_framework, &project_owner, &user1, &user2);
         
         // Set allocation for user1
         let addresses = vector::empty<address>();
@@ -400,12 +399,12 @@ module projectOwnerAdr::airdrop_tests {
     #[test]
     /// Simulates a large airdrop with many users (scaled down for testing purposes)
     fun test_large_airdrop_simulation() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let supra_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&supra_framework, &project_owner, &user1, &user2);
         
         // Create 50 allocations split across 5 reasons to simulate a large airdrop
         // This tests efficiency without hitting gas limits
