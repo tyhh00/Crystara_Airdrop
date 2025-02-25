@@ -89,6 +89,15 @@ module projectOwnerAdr::airdrop {
         });
     }
 
+    public entry fun set_allocation_v2<CoinType>(
+        owner: &signer,
+        recipients: vector<address>,
+        amounts: vector<u64>,
+        reason: vector<u8>
+    ) acquires AirdropStore {
+        set_allocation<CoinType>(owner, recipients, amounts, string::utf8(reason));
+    }
+
     // Set an airdrop allocation for a specific reason
     // If the reason already exists, it will be updated with new addresses and amounts
     public entry fun set_allocation<CoinType>(
