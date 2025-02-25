@@ -176,7 +176,9 @@ module projectOwnerAdr::airdrop_tests {
         coin::destroy_mint_cap(mint_cap);
     }
     
-    #[test(expected_failure = 393221)] // ENO_ALLOCATION error code
+    #[test]
+    #[expected_failure(abort_code = 393221)]
+     // ENO_ALLOCATION error code
     /// Test that a user cannot claim twice for the same reason
     fun test_no_double_claim() {
         let aptos_framework = account::create_account_for_test(@0x1);
@@ -336,7 +338,8 @@ module projectOwnerAdr::airdrop_tests {
         coin::destroy_mint_cap(mint_cap);
     }
     
-    #[test(expected_failure = 393221)] // ENO_ALLOCATION error code
+    #[test]
+    #[expected_failure(abort_code = 393221)] // ENO_ALLOCATION error code
     /// Test that modifying an allocation doesn't allow a user to claim twice
     fun test_modified_allocation_no_double_claim() {
         let aptos_framework = account::create_account_for_test(@0x1);
