@@ -1,5 +1,5 @@
 module projectOwnerAdr::airdrop {
-    use std::string::{String};
+    use std::string::{String, Self};
     use std::signer;
     use std::vector;
     use std::error;
