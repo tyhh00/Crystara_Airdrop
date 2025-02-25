@@ -3,7 +3,7 @@ module projectOwnerAdr::airdrop_tests {
     use std::string::{utf8};
     use std::signer;
     use std::vector;
-    use supra_framework::coin::{Self, BurnCapability, MintCapability};
+    use supra_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
     use supra_framework::account;
     use supra_framework::timestamp;
     use projectOwnerAdr::airdrop;
@@ -23,7 +23,7 @@ module projectOwnerAdr::airdrop_tests {
         project_owner: &signer,
         user1: &signer,
         user2: &signer
-    ): (BurnCapability<TestCoin>, MintCapability<TestCoin>) {
+    ): (BurnCapability<TestCoin>, FreezeCapability<TestCoin>, MintCapability<TestCoin>) {
         // Initialize timestamp for testing
         timestamp::set_time_has_started_for_testing(aptos_framework);
         
@@ -48,16 +48,16 @@ module projectOwnerAdr::airdrop_tests {
         // Initialize airdrop module
         airdrop::initialize<TestCoin>(project_owner);
         
-        (burn_cap, mint_cap)
+        (burn_cap, freeze_cap, mint_cap)
     }
     
     #[test]
     /// Test basic initialization of the airdrop module
     fun test_initialize() {
-        let aptos_framework = account::create_account_for_test(@0x1);
+        let _aptos_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        let _user1 = account::create_account_for_test(USER1);
+        let _user2 = account::create_account_for_test(USER2);
         
         // Initialize airdrop
         airdrop::initialize<TestCoin>(&project_owner);
@@ -80,7 +80,7 @@ module projectOwnerAdr::airdrop_tests {
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
         // Create address and amount vectors
         let addresses = vector::empty<address>();
@@ -112,6 +112,7 @@ module projectOwnerAdr::airdrop_tests {
         assert!(airdrop::get_total_allocation<TestCoin>() == 3000, 4);
         
         coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
     
@@ -123,7 +124,7 @@ module projectOwnerAdr::airdrop_tests {
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
         // Create allocation
         let addresses = vector::empty<address>();
@@ -147,6 +148,7 @@ module projectOwnerAdr::airdrop_tests {
         assert!(coin::balance<TestCoin>(USER1) == 1000, 5);
         
         coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
     
@@ -158,7 +160,7 @@ module projectOwnerAdr::airdrop_tests {
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
         // Create allocation
         let addresses = vector::empty<address>();
@@ -182,6 +184,7 @@ module projectOwnerAdr::airdrop_tests {
         assert!(coin::balance<TestCoin>(USER1) == 1000, 7); // Balance shouldn't change
         
         coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
     
@@ -193,7 +196,7 @@ module projectOwnerAdr::airdrop_tests {
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
         // Create first allocation
         let addresses1 = vector::empty<address>();
@@ -226,6 +229,7 @@ module projectOwnerAdr::airdrop_tests {
         assert!(coin::balance<TestCoin>(USER1) == 1500, 9);
         
         coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
     
@@ -237,7 +241,7 @@ module projectOwnerAdr::airdrop_tests {
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
         // Create first allocation
         let addresses1 = vector::empty<address>();
@@ -270,6 +274,7 @@ module projectOwnerAdr::airdrop_tests {
         assert!(coin::balance<TestCoin>(USER1) == 1000, 11); // Balance shouldn't change
         
         coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
     
@@ -281,7 +286,7 @@ module projectOwnerAdr::airdrop_tests {
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
         // Create multiple reason allocations
         let i = 0;
@@ -319,6 +324,7 @@ module projectOwnerAdr::airdrop_tests {
         assert!(coin::balance<TestCoin>(USER1) == 500, 19); // 5 reasons * 100 tokens
         
         coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
     
@@ -330,7 +336,7 @@ module projectOwnerAdr::airdrop_tests {
         let user1 = account::create_account_for_test(USER1);
         let user2 = account::create_account_for_test(USER2);
         
-        let (burn_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
         // Create 50 allocations split across 5 reasons to simulate a large airdrop
         // This tests efficiency without hitting gas limits
@@ -389,6 +395,7 @@ module projectOwnerAdr::airdrop_tests {
         // To verify gas usage, we would observe the transaction costs in a real environment
         
         coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
 } 
