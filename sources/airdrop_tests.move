@@ -127,7 +127,7 @@ module projectOwnerAdr::airdrop_tests {
             utf8(b"Test Allocation")
         );
         
-        // Check that total allocation is 2000
+        // Check that total allocation is updated to 2000
         assert!(airdrop::get_total_allocation<TestCoin>() == 2000, 4);
         
         coin::destroy_burn_cap(burn_cap);
@@ -136,170 +136,7 @@ module projectOwnerAdr::airdrop_tests {
     }
     
     #[test]
-    /// Test that a user cannot claim the same reason twice
-    fun test_no_double_claim() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let project_owner = account::create_account_for_test(PROJECT_OWNER);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
-        
-        // Create allocation for user1
-        let addresses = vector::empty<address>();
-        vector::push_back(&mut addresses, USER1);
-        
-        let amounts = vector::empty<u64>();
-        vector::push_back(&mut amounts, 1000);
-        
-        // Set allocation
-        airdrop::set_allocation<TestCoin>(
-            &project_owner,
-            addresses,
-            amounts,
-            utf8(b"Test Allocation")
-        );
-        
-        // Deposit to airdrop
-        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 2000); // Enough for both users
-        
-        // Enable claims
-        airdrop::enable_claims<TestCoin>(&project_owner, true);
-        
-        // First claim should succeed
-        airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 1000, 5);
-        
-        // Second claim should not find any unclaimed allocations for the user
-        // Instead of expecting an error, let's check that the balance remains the same
-        // Need to disable claims first and then re-enable to reset the state
-        airdrop::enable_claims<TestCoin>(&project_owner, false);
-        airdrop::enable_claims<TestCoin>(&project_owner, true);
-        
-        // Try to claim again - this should not increase the balance
-        airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 1000, 6); // Balance should still be 1000
-        
-        coin::destroy_burn_cap(burn_cap);
-        coin::destroy_freeze_cap(freeze_cap);
-        coin::destroy_mint_cap(mint_cap);
-    }
-    
-    #[test]
-    /// Test that a user can claim from multiple reasons
-    fun test_multiple_reasons() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let project_owner = account::create_account_for_test(PROJECT_OWNER);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
-        
-        // Set multiple allocations for user1
-        let addresses1 = vector::empty<address>();
-        vector::push_back(&mut addresses1, USER1);
-        
-        let amounts1 = vector::empty<u64>();
-        vector::push_back(&mut amounts1, 1000);
-        
-        airdrop::set_allocation<TestCoin>(
-            &project_owner,
-            addresses1,
-            amounts1,
-            utf8(b"Reason 1")
-        );
-        
-        let addresses2 = vector::empty<address>();
-        vector::push_back(&mut addresses2, USER1);
-        
-        let amounts2 = vector::empty<u64>();
-        vector::push_back(&mut amounts2, 2000);
-        
-        airdrop::set_allocation<TestCoin>(
-            &project_owner,
-            addresses2,
-            amounts2,
-            utf8(b"Reason 2")
-        );
-        
-        // Deposit to airdrop
-        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 3000);
-        
-        // Enable claims
-        airdrop::enable_claims<TestCoin>(&project_owner, true);
-        
-        // Claim both reasons at once
-        airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 3000, 7);
-        
-        coin::destroy_burn_cap(burn_cap);
-        coin::destroy_freeze_cap(freeze_cap);
-        coin::destroy_mint_cap(mint_cap);
-    }
-    
-    #[test]
-    /// Test that if a user has claimed one reason and a new reason is added, they can claim the new one
-    fun test_claim_new_reasons() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let project_owner = account::create_account_for_test(PROJECT_OWNER);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
-        
-        // Set initial allocation
-        let addresses1 = vector::empty<address>();
-        vector::push_back(&mut addresses1, USER1);
-        
-        let amounts1 = vector::empty<u64>();
-        vector::push_back(&mut amounts1, 1000);
-        
-        airdrop::set_allocation<TestCoin>(
-            &project_owner,
-            addresses1,
-            amounts1,
-            utf8(b"Reason 1")
-        );
-        
-        // Deposit to airdrop
-        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 3000);
-        
-        // Enable claims
-        airdrop::enable_claims<TestCoin>(&project_owner, true);
-        
-        // Claim first reason
-        airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 1000, 8);
-        
-        // Add a new reason
-        let addresses2 = vector::empty<address>();
-        vector::push_back(&mut addresses2, USER1);
-        
-        let amounts2 = vector::empty<u64>();
-        vector::push_back(&mut amounts2, 2000);
-        
-        airdrop::set_allocation<TestCoin>(
-            &project_owner,
-            addresses2,
-            amounts2,
-            utf8(b"Reason 2")
-        );
-        
-        // Need to disable claims and re-enable since we added a new allocation
-        airdrop::enable_claims<TestCoin>(&project_owner, false);
-        airdrop::enable_claims<TestCoin>(&project_owner, true);
-        
-        // Claim the new reason
-        airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 3000, 9);
-        
-        coin::destroy_burn_cap(burn_cap);
-        coin::destroy_freeze_cap(freeze_cap);
-        coin::destroy_mint_cap(mint_cap);
-    }
-    
-    #[test]
-    /// Test that a user can make a basic claim
+    /// Test basic deposit and claim
     fun test_basic_claim() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
@@ -308,7 +145,7 @@ module projectOwnerAdr::airdrop_tests {
         
         let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
-        // Set allocation
+        // Set allocation for user1
         let addresses = vector::empty<address>();
         vector::push_back(&mut addresses, USER1);
         
@@ -328,18 +165,20 @@ module projectOwnerAdr::airdrop_tests {
         // Enable claims
         airdrop::enable_claims<TestCoin>(&project_owner, true);
         
-        // Claim
+        // User1 claims their allocation
         airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 1000, 10);
+        
+        // Check that user1 received the tokens
+        assert!(coin::balance<TestCoin>(USER1) == 1000, 5);
         
         coin::destroy_burn_cap(burn_cap);
         coin::destroy_freeze_cap(freeze_cap);
         coin::destroy_mint_cap(mint_cap);
     }
     
-    #[test]
-    /// Test that a modified allocation cannot be claimed twice
-    fun test_modified_allocation_no_double_claim() {
+    #[test(expected_failure = 393221)] // ENO_ALLOCATION error code
+    /// Test that a user cannot claim twice for the same reason
+    fun test_no_double_claim() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let project_owner = account::create_account_for_test(PROJECT_OWNER);
         let user1 = account::create_account_for_test(USER1);
@@ -347,7 +186,7 @@ module projectOwnerAdr::airdrop_tests {
         
         let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
         
-        // Set initial allocation
+        // Set allocation for user1
         let addresses = vector::empty<address>();
         vector::push_back(&mut addresses, USER1);
         
@@ -362,39 +201,36 @@ module projectOwnerAdr::airdrop_tests {
         );
         
         // Deposit to airdrop
-        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 3000);
+        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 1000);
         
         // Enable claims
         airdrop::enable_claims<TestCoin>(&project_owner, true);
         
-        // Claim
+        // User1 claims their allocation
         airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 1000, 11);
         
-        // Modify the allocation (increase amount)
-        let addresses = vector::empty<address>();
-        vector::push_back(&mut addresses, USER1);
+        // Check that user1 received the tokens
+        assert!(coin::balance<TestCoin>(USER1) == 1000, 6);
         
-        let amounts = vector::empty<u64>();
-        vector::push_back(&mut amounts, 2000);
-        
-        airdrop::set_allocation<TestCoin>(
-            &project_owner,
-            addresses,
-            amounts,
-            utf8(b"Test Allocation")
-        );
-        
-        // Disable claims and re-enable
-        airdrop::enable_claims<TestCoin>(&project_owner, false);
-        airdrop::enable_claims<TestCoin>(&project_owner, true);
-        
-        // Try to claim again - this should not find any unclaimed allocations
-        // Instead of expecting an error, let's check that the balance remains the same
+        // User1 tries to claim again (should fail with ENO_ALLOCATION)
         airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 1000, 12); // Balance should still be 1000
         
-        // Set a new allocation with a different reason
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+    
+    #[test]
+    /// Test claiming from multiple reasons
+    fun test_multiple_reasons() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let project_owner = account::create_account_for_test(PROJECT_OWNER);
+        let user1 = account::create_account_for_test(USER1);
+        let user2 = account::create_account_for_test(USER2);
+        
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        
+        // Set allocation for user1 with reason1
         let addresses = vector::empty<address>();
         vector::push_back(&mut addresses, USER1);
         
@@ -405,16 +241,153 @@ module projectOwnerAdr::airdrop_tests {
             &project_owner,
             addresses,
             amounts,
-            utf8(b"New Reason")
+            utf8(b"Reason1")
         );
         
-        // Disable claims and re-enable
-        airdrop::enable_claims<TestCoin>(&project_owner, false);
+        // Set allocation for user1 with reason2
+        let addresses = vector::empty<address>();
+        vector::push_back(&mut addresses, USER1);
+        
+        let amounts = vector::empty<u64>();
+        vector::push_back(&mut amounts, 2000);
+        
+        airdrop::set_allocation<TestCoin>(
+            &project_owner,
+            addresses,
+            amounts,
+            utf8(b"Reason2")
+        );
+        
+        // Deposit to airdrop (enough for both reasons)
+        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 3000);
+        
+        // Enable claims
         airdrop::enable_claims<TestCoin>(&project_owner, true);
         
-        // Now claim should succeed for the new reason
+        // User1 claims all allocations
         airdrop::claim<TestCoin>(&user1);
-        assert!(coin::balance<TestCoin>(USER1) == 2000, 13);
+        
+        // Check that user1 received the tokens from both reasons
+        assert!(coin::balance<TestCoin>(USER1) == 3000, 7);
+        
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+    
+    #[test]
+    /// Test claiming new reasons after claiming existing ones
+    fun test_claim_new_reasons() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let project_owner = account::create_account_for_test(PROJECT_OWNER);
+        let user1 = account::create_account_for_test(USER1);
+        let user2 = account::create_account_for_test(USER2);
+        
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        
+        // Set allocation for user1 with reason1
+        let addresses = vector::empty<address>();
+        vector::push_back(&mut addresses, USER1);
+        
+        let amounts = vector::empty<u64>();
+        vector::push_back(&mut amounts, 1000);
+        
+        airdrop::set_allocation<TestCoin>(
+            &project_owner,
+            addresses,
+            amounts,
+            utf8(b"Reason1")
+        );
+        
+        // Deposit to airdrop
+        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 10000); // Deposit enough for all future allocations
+        
+        // Enable claims
+        airdrop::enable_claims<TestCoin>(&project_owner, true);
+        
+        // User1 claims their allocation
+        airdrop::claim<TestCoin>(&user1);
+        
+        // Check that user1 received the tokens
+        assert!(coin::balance<TestCoin>(USER1) == 1000, 8);
+        
+        // Set a new allocation with reason2
+        let addresses = vector::empty<address>();
+        vector::push_back(&mut addresses, USER1);
+        
+        let amounts = vector::empty<u64>();
+        vector::push_back(&mut amounts, 2000);
+        
+        airdrop::set_allocation<TestCoin>(
+            &project_owner,
+            addresses,
+            amounts,
+            utf8(b"Reason2")
+        );
+        
+        // User1 claims the new allocation
+        airdrop::claim<TestCoin>(&user1);
+        
+        // Check that user1 received the new tokens
+        assert!(coin::balance<TestCoin>(USER1) == 3000, 9);
+        
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+    
+    #[test(expected_failure = 393221)] // ENO_ALLOCATION error code
+    /// Test that modifying an allocation doesn't allow a user to claim twice
+    fun test_modified_allocation_no_double_claim() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let project_owner = account::create_account_for_test(PROJECT_OWNER);
+        let user1 = account::create_account_for_test(USER1);
+        let user2 = account::create_account_for_test(USER2);
+        
+        let (burn_cap, freeze_cap, mint_cap) = setup_test(&aptos_framework, &project_owner, &user1, &user2);
+        
+        // Set allocation for user1
+        let addresses = vector::empty<address>();
+        vector::push_back(&mut addresses, USER1);
+        
+        let amounts = vector::empty<u64>();
+        vector::push_back(&mut amounts, 1000);
+        
+        airdrop::set_allocation<TestCoin>(
+            &project_owner,
+            addresses,
+            amounts,
+            utf8(b"Test Allocation")
+        );
+        
+        // Deposit to airdrop
+        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, 2000);
+        
+        // Enable claims
+        airdrop::enable_claims<TestCoin>(&project_owner, true);
+        
+        // User1 claims their allocation
+        airdrop::claim<TestCoin>(&user1);
+        
+        // Check that user1 received the tokens
+        assert!(coin::balance<TestCoin>(USER1) == 1000, 10);
+        
+        // Modify allocation for user1 (increase to 1500)
+        let addresses = vector::empty<address>();
+        vector::push_back(&mut addresses, USER1);
+        
+        let amounts = vector::empty<u64>();
+        vector::push_back(&mut amounts, 1500);
+        
+        airdrop::set_allocation<TestCoin>(
+            &project_owner,
+            addresses,
+            amounts,
+            utf8(b"Test Allocation")
+        );
+        
+        // User1 tries to claim again (should fail with ENO_ALLOCATION)
+        airdrop::claim<TestCoin>(&user1);
         
         coin::destroy_burn_cap(burn_cap);
         coin::destroy_freeze_cap(freeze_cap);
@@ -458,6 +431,9 @@ module projectOwnerAdr::airdrop_tests {
                 
                 if (u % 2 == 0) {
                     total_allocation = total_allocation + amount;
+                } else {
+                    // Add user2's allocation to the total as well
+                    total_allocation = total_allocation + amount;
                 };
                 
                 u = u + 1;
@@ -478,28 +454,8 @@ module projectOwnerAdr::airdrop_tests {
             r = r + 1;
         };
         
-        // Calculate the correct total allocation needed
-        // In this case, we need to account for both user1 and user2's allocations
-        let user1_allocation = total_allocation; // What we calculated above
-        let user2_allocation = 0u64;
-        
-        let r = 0;
-        while (r < reason_count) {
-            let u = 0;
-            while (u < user_per_reason) {
-                if (u % 2 == 1) { // user2's allocations
-                    let amount = 100 + (r * 10) + u;
-                    user2_allocation = user2_allocation + amount;
-                };
-                u = u + 1;
-            };
-            r = r + 1;
-        };
-        
-        let total_needed = user1_allocation + user2_allocation;
-        
-        // Deposit enough to cover both users
-        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, total_needed + 1000); // Add extra to be safe
+        // Deposit enough to cover all allocations
+        airdrop::deposit_to_airdrop<TestCoin>(&project_owner, total_allocation + 1000); // Add extra to be safe
         
         // Enable claims
         airdrop::enable_claims<TestCoin>(&project_owner, true);
