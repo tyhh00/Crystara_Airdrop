@@ -367,7 +367,7 @@ module projectOwnerAdr::airdrop_tests {
             // Create unique reason string by appending the reason number
             let reason_bytes = vector::empty<u8>();
             vector::append(&mut reason_bytes, b"BatchReason");
-            vector::push_back(&mut reason_bytes, (48 + r)); // Convert number to ASCII digit
+            vector::push_back(&mut reason_bytes, ((48 + r) as u8)); // Convert number to ASCII digit
             
             airdrop::set_allocation<TestCoin>(
                 &project_owner,

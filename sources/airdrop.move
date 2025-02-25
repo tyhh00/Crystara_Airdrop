@@ -7,7 +7,7 @@ module projectOwnerAdr::airdrop {
     use supra_framework::account;
     use supra_framework::event;
 
-    /// Error codes
+    // Error codes
     const ENOT_OWNER: u64 = 1;
     const EVECTOR_LENGTH_MISMATCH: u64 = 2;
     const EINSUFFICIENT_FUNDS: u64 = 3;
@@ -16,31 +16,31 @@ module projectOwnerAdr::airdrop {
     const EALREADY_INITIALIZED: u64 = 6;
     const ENOT_INITIALIZED: u64 = 7;
 
-    /// Represents a single airdrop allocation
+    // Represents a single airdrop allocation
     struct Allocation has store, drop {
         addresses: vector<address>,
         amounts: vector<u64>,
     }
 
-    /// Main airdrop storage with allocations grouped by reason
+    // Main airdrop storage with allocations grouped by reason
     struct AirdropStore<phantom CoinType> has key {
         allocations: vector<AllocationWithReason>,
         claims_enabled: bool,
         resource_signer_cap: account::SignerCapability
     }
 
-    /// Allocation with a specific reason
+    // Allocation with a specific reason
     struct AllocationWithReason has store, drop {
         reason: String,
         allocation: Allocation,
     }
 
-    /// Tracks which reasons a user has claimed
+    // Tracks which reasons a user has claimed
     struct ClaimRecord<phantom CoinType> has key {
         claimed_reasons: vector<String>
     }
 
-    /// Events
+    // Events
     #[event]
     struct AllocationSetEvent has drop, store {
         reason: String,
@@ -67,7 +67,7 @@ module projectOwnerAdr::airdrop {
 
     const AIRDROP_SEED: vector<u8> = b"SUPRA_AIRDROP_RESOURCE";
 
-    /// Initialize the airdrop module with a resource account to hold funds
+    // Initialize the airdrop module with a resource account to hold funds
     public entry fun initialize<CoinType>(owner: &signer) {
         let owner_addr = signer::address_of(owner);
         assert!(owner_addr == @projectOwnerAdr, error::permission_denied(ENOT_OWNER));
@@ -89,8 +89,8 @@ module projectOwnerAdr::airdrop {
         });
     }
 
-    /// Set an airdrop allocation for a specific reason
-    /// If the reason already exists, it will be updated with new addresses and amounts
+    // Set an airdrop allocation for a specific reason
+    // If the reason already exists, it will be updated with new addresses and amounts
     public entry fun set_allocation<CoinType>(
         owner: &signer,
         recipients: vector<address>,
@@ -153,7 +153,7 @@ module projectOwnerAdr::airdrop {
         });
     }
 
-    /// Deposit funds to the airdrop
+    // Deposit funds to the airdrop
     public entry fun deposit_to_airdrop<CoinType>(owner: &signer, amount: u64) acquires AirdropStore {
         let owner_addr = signer::address_of(owner);
         assert!(owner_addr == @projectOwnerAdr, error::permission_denied(ENOT_OWNER));
@@ -168,7 +168,7 @@ module projectOwnerAdr::airdrop {
         event::emit(DepositEvent { amount });
     }
 
-    /// Calculate total allocation amount across all reasons
+    // Calculate total allocation amount across all reasons
     fun calculate_total_allocation<CoinType>(): u64 acquires AirdropStore {
         let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
         let total = 0u64;
@@ -193,8 +193,8 @@ module projectOwnerAdr::airdrop {
         total
     }
 
-    /// Enable or disable claims
-    /// Claims can only be enabled if there are sufficient funds to cover all allocations
+    // Enable or disable claims
+    // Claims can only be enabled if there are sufficient funds to cover all allocations
     public entry fun enable_claims<CoinType>(owner: &signer, enable: bool) acquires AirdropStore {
         let owner_addr = signer::address_of(owner);
         assert!(owner_addr == @projectOwnerAdr, error::permission_denied(ENOT_OWNER));
@@ -224,7 +224,7 @@ module projectOwnerAdr::airdrop {
         event::emit(ClaimsEnabledEvent { enabled: enable });
     }
 
-    /// Find all unclaimed allocations for a user
+    // Find all unclaimed allocations for a user
     fun get_unclaimed_allocations<CoinType>(user: address): (vector<String>, vector<u64>) acquires AirdropStore, ClaimRecord {
         let reasons = vector::empty<String>();
         let amounts = vector::empty<u64>();
@@ -284,7 +284,7 @@ module projectOwnerAdr::airdrop {
         (reasons, amounts)
     }
 
-    /// Claim all available airdrops for a user
+    // Claim all available airdrops for a user
     public entry fun claim<CoinType>(recipient: &signer) acquires AirdropStore, ClaimRecord {
         let recipient_addr = signer::address_of(recipient);
         assert!(exists<AirdropStore<CoinType>>(@projectOwnerAdr), error::not_found(ENOT_INITIALIZED));
@@ -342,7 +342,7 @@ module projectOwnerAdr::airdrop {
         };
     }
 
-    /// Get the current balance of the airdrop
+    // Get the current balance of the airdrop
     #[view]
     public fun get_airdrop_balance<CoinType>(): u64 acquires AirdropStore {
         let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
@@ -350,19 +350,19 @@ module projectOwnerAdr::airdrop {
         coin::balance<CoinType>(signer::address_of(&resource_signer))
     }
 
-    /// Get all unclaimed allocations for a user
+    // Get all unclaimed allocations for a user
     #[view]
     public fun get_user_allocations<CoinType>(user: address): (vector<String>, vector<u64>) acquires AirdropStore, ClaimRecord {
         get_unclaimed_allocations<CoinType>(user)
     }
 
-    /// Check if claims are enabled
+    // Check if claims are enabled
     #[view]
     public fun is_claims_enabled<CoinType>(): bool acquires AirdropStore {
         borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr).claims_enabled
     }
 
-    /// Get the total amount allocated across all reasons
+    // Get the total amount allocated across all reasons
     #[view]
     public fun get_total_allocation<CoinType>(): u64 acquires AirdropStore {
         calculate_total_allocation<CoinType>()
