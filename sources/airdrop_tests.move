@@ -1,6 +1,6 @@
 #[test_only]
 module projectOwnerAdr::airdrop_tests {
-    use std::string::{String, utf8};
+    use std::string::{utf8};
     use std::signer;
     use std::vector;
     use supra_framework::coin::{Self, BurnCapability, MintCapability};
@@ -554,14 +554,16 @@ module projectOwnerAdr::airdrop_tests {
                 u = u + 1;
             };
             
-            let reason = utf8(b"BatchReason");
-            let reason_str = std::string::append(&reason, utf8(std::bcs::to_bytes(&r)));
+            // Create unique reason string by appending the reason number
+            let reason_bytes = vector::empty<u8>();
+            vector::append(&mut reason_bytes, b"BatchReason");
+            vector::push_back(&mut reason_bytes, (48 + r as u8)); // Convert number to ASCII digit
             
             airdrop::set_allocation<TestCoin>(
                 &project_owner,
                 addresses,
                 amounts,
-                reason_str
+                utf8(reason_bytes)
             );
             
             r = r + 1;
