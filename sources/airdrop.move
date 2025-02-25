@@ -1,5 +1,5 @@
 module projectOwnerAdr::airdrop {
-    use std::string::{Self, String};
+    use std::string::{String};
     use std::signer;
     use std::vector;
     use std::error;
@@ -65,7 +65,7 @@ module projectOwnerAdr::airdrop {
         enabled: bool
     }
 
-    const AIRDROP_SEED: vector<u8> = b"CRYSTARA_SUPRA_AIRDROP_RESOURCE";
+    const AIRDROP_SEED: vector<u8> = b"SUPRA_AIRDROP_RESOURCE";
 
     /// Initialize the airdrop module with a resource account to hold funds
     public entry fun initialize<CoinType>(owner: &signer) {
@@ -123,7 +123,7 @@ module projectOwnerAdr::airdrop {
             let allocation_with_reason = vector::borrow(allocations_ref, i);
             if (allocation_with_reason.reason == reason) {
                 found_idx = i;
-                break;
+                break
             };
             i = i + 1;
         };
@@ -168,6 +168,31 @@ module projectOwnerAdr::airdrop {
         event::emit(DepositEvent { amount });
     }
 
+    /// Calculate total allocation amount across all reasons
+    fun calculate_total_allocation<CoinType>(): u64 acquires AirdropStore {
+        let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
+        let total = 0u64;
+        
+        let i = 0;
+        let allocations_len = vector::length(&airdrop_store.allocations);
+        
+        while (i < allocations_len) {
+            let allocation_with_reason = vector::borrow(&airdrop_store.allocations, i);
+            let amounts = &allocation_with_reason.allocation.amounts;
+            let j = 0;
+            let amounts_len = vector::length(amounts);
+            
+            while (j < amounts_len) {
+                total = total + *vector::borrow(amounts, j);
+                j = j + 1;
+            };
+            
+            i = i + 1;
+        };
+        
+        total
+    }
+
     /// Enable or disable claims
     /// Claims can only be enabled if there are sufficient funds to cover all allocations
     public entry fun enable_claims<CoinType>(owner: &signer, enable: bool) acquires AirdropStore {
@@ -175,11 +200,12 @@ module projectOwnerAdr::airdrop {
         assert!(owner_addr == @projectOwnerAdr, error::permission_denied(ENOT_OWNER));
         assert!(exists<AirdropStore<CoinType>>(@projectOwnerAdr), error::not_found(ENOT_INITIALIZED));
         
-        let airdrop_store = borrow_global_mut<AirdropStore<CoinType>>(@projectOwnerAdr);
-        
         if (enable) {
-            // Calculate total amount needed for all allocations
+            // Calculate total amount needed for all allocations - do this BEFORE borrowing
             let total_needed = calculate_total_allocation<CoinType>();
+            
+            // Now we can borrow
+            let airdrop_store = borrow_global_mut<AirdropStore<CoinType>>(@projectOwnerAdr);
             
             // Get current balance
             let resource_signer = account::create_signer_with_capability(&airdrop_store.resource_signer_cap);
@@ -187,65 +213,15 @@ module projectOwnerAdr::airdrop {
             
             // Ensure there are enough funds
             assert!(balance >= total_needed, error::invalid_state(EINSUFFICIENT_FUNDS));
+            
+            airdrop_store.claims_enabled = true;
+        } else {
+            // Just disable claims, no calculations needed
+            let airdrop_store = borrow_global_mut<AirdropStore<CoinType>>(@projectOwnerAdr);
+            airdrop_store.claims_enabled = false;
         };
-        
-        airdrop_store.claims_enabled = enable;
         
         event::emit(ClaimsEnabledEvent { enabled: enable });
-    }
-
-    /// Claim all available airdrops for a user
-    public entry fun claim<CoinType>(recipient: &signer) acquires AirdropStore, ClaimRecord {
-        let recipient_addr = signer::address_of(recipient);
-        assert!(exists<AirdropStore<CoinType>>(@projectOwnerAdr), error::not_found(ENOT_INITIALIZED));
-        
-        let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
-        
-        // Ensure claims are enabled
-        assert!(airdrop_store.claims_enabled, error::invalid_state(ECLAIMS_NOT_ENABLED));
-        
-        // Initialize claim record if it doesn't exist
-        if (!exists<ClaimRecord<CoinType>>(recipient_addr)) {
-            move_to(recipient, ClaimRecord<CoinType> { claimed_reasons: vector::empty() });
-        };
-        
-        // Get unclaimed allocations for this user
-        let (reasons_to_claim, amounts_to_claim) = get_unclaimed_allocations<CoinType>(recipient_addr);
-        let claims_count = vector::length(&reasons_to_claim);
-        
-        // Ensure there's something to claim
-        assert!(claims_count > 0, error::not_found(ENO_ALLOCATION));
-        
-        // Process claims
-        let claim_record = borrow_global_mut<ClaimRecord<CoinType>>(recipient_addr);
-        let resource_signer = account::create_signer_with_capability(&airdrop_store.resource_signer_cap);
-        let total_amount = 0u64;
-        
-        let i = 0;
-        while (i < claims_count) {
-            let reason = vector::borrow(&reasons_to_claim, i);
-            let amount = *vector::borrow(&amounts_to_claim, i);
-            
-            // Track claimed amount
-            total_amount = total_amount + amount;
-            
-            // Mark as claimed
-            vector::push_back(&mut claim_record.claimed_reasons, *reason);
-            
-            // Emit event
-            event::emit(ClaimEvent {
-                recipient: recipient_addr,
-                reason: *reason,
-                amount
-            });
-            
-            i = i + 1;
-        };
-        
-        // Transfer the total amount in one transaction for gas efficiency
-        if (total_amount > 0) {
-            coin::transfer<CoinType>(&resource_signer, recipient_addr, total_amount);
-        };
     }
 
     /// Find all unclaimed allocations for a user
@@ -296,7 +272,7 @@ module projectOwnerAdr::airdrop {
                             vector::push_back(&mut reasons, *reason);
                             vector::push_back(&mut amounts, amount);
                         };
-                        break;
+                        break
                     };
                     k = k + 1;
                 };
@@ -308,29 +284,62 @@ module projectOwnerAdr::airdrop {
         (reasons, amounts)
     }
 
-    /// Calculate total allocation amount across all reasons
-    fun calculate_total_allocation<CoinType>(): u64 acquires AirdropStore {
+    /// Claim all available airdrops for a user
+    public entry fun claim<CoinType>(recipient: &signer) acquires AirdropStore, ClaimRecord {
+        let recipient_addr = signer::address_of(recipient);
+        assert!(exists<AirdropStore<CoinType>>(@projectOwnerAdr), error::not_found(ENOT_INITIALIZED));
+        
+        // Check if claims are enabled first
+        {
+            let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
+            assert!(airdrop_store.claims_enabled, error::invalid_state(ECLAIMS_NOT_ENABLED));
+        };
+        
+        // Get unclaimed allocations for this user
+        let (reasons_to_claim, amounts_to_claim) = get_unclaimed_allocations<CoinType>(recipient_addr);
+        let claims_count = vector::length(&reasons_to_claim);
+        
+        // Ensure there's something to claim
+        assert!(claims_count > 0, error::not_found(ENO_ALLOCATION));
+        
+        // Initialize claim record if it doesn't exist
+        if (!exists<ClaimRecord<CoinType>>(recipient_addr)) {
+            move_to(recipient, ClaimRecord<CoinType> { claimed_reasons: vector::empty() });
+        };
+        
+        // Process claims
+        let claim_record = borrow_global_mut<ClaimRecord<CoinType>>(recipient_addr);
+        
+        // Get airdrop store and signer for transfer
         let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
-        let total = 0u64;
+        let resource_signer = account::create_signer_with_capability(&airdrop_store.resource_signer_cap);
+        let total_amount = 0u64;
         
         let i = 0;
-        let allocations_len = vector::length(&airdrop_store.allocations);
-        
-        while (i < allocations_len) {
-            let allocation_with_reason = vector::borrow(&airdrop_store.allocations, i);
-            let amounts = &allocation_with_reason.allocation.amounts;
-            let j = 0;
-            let amounts_len = vector::length(amounts);
+        while (i < claims_count) {
+            let reason = vector::borrow(&reasons_to_claim, i);
+            let amount = *vector::borrow(&amounts_to_claim, i);
             
-            while (j < amounts_len) {
-                total = total + *vector::borrow(amounts, j);
-                j = j + 1;
-            };
+            // Track claimed amount
+            total_amount = total_amount + amount;
+            
+            // Mark as claimed
+            vector::push_back(&mut claim_record.claimed_reasons, *reason);
+            
+            // Emit event
+            event::emit(ClaimEvent {
+                recipient: recipient_addr,
+                reason: *reason,
+                amount
+            });
             
             i = i + 1;
         };
         
-        total
+        // Transfer the total amount in one transaction for gas efficiency
+        if (total_amount > 0) {
+            coin::transfer<CoinType>(&resource_signer, recipient_addr, total_amount);
+        };
     }
 
     /// Get the current balance of the airdrop
