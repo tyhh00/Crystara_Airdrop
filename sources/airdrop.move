@@ -15,6 +15,7 @@ module projectOwnerAdr::airdrop {
     const ENO_ALLOCATION: u64 = 5;
     const EALREADY_INITIALIZED: u64 = 6;
     const ENOT_INITIALIZED: u64 = 7;
+    const ECLAIMS_MUST_BE_DISABLED: u64 = 8;
 
     // Represents a single airdrop allocation
     struct Allocation has store, drop {
@@ -111,7 +112,9 @@ module projectOwnerAdr::airdrop {
         assert!(vector::length(&recipients) == vector::length(&amounts), error::invalid_argument(EVECTOR_LENGTH_MISMATCH));
         assert!(exists<AirdropStore<CoinType>>(@projectOwnerAdr), error::not_found(ENOT_INITIALIZED));
 
+
         let airdrop_store = borrow_global_mut<AirdropStore<CoinType>>(@projectOwnerAdr);
+        assert!(!airdrop_store.claims_enabled, error::invalid_state(ECLAIMS_MUST_BE_DISABLED));
         
         // Calculate total amount for the allocation
         let total_amount = 0u64;
@@ -202,16 +205,69 @@ module projectOwnerAdr::airdrop {
         total
     }
 
+    // Calculate total unclaimed allocation amount across all reasons
+    fun calculate_total_unclaimed_allocation<CoinType>(): u64 acquires AirdropStore, ClaimRecord {
+        let airdrop_store = borrow_global<AirdropStore<CoinType>>(@projectOwnerAdr);
+        let total = 0u64;
+        
+        let i = 0;
+        let allocations_len = vector::length(&airdrop_store.allocations);
+        
+        while (i < allocations_len) {
+            let allocation_with_reason = vector::borrow(&airdrop_store.allocations, i);
+            let reason = &allocation_with_reason.reason;
+            let addresses = &allocation_with_reason.allocation.addresses;
+            let amounts = &allocation_with_reason.allocation.amounts;
+            
+            let j = 0;
+            let addresses_len = vector::length(addresses);
+            
+            while (j < addresses_len) {
+                let addr = *vector::borrow(addresses, j);
+                let amount = *vector::borrow(amounts, j);
+                
+                // Check if this user has already claimed this reason
+                let already_claimed = false;
+                
+                if (exists<ClaimRecord<CoinType>>(addr)) {
+                    let claim_record = borrow_global<ClaimRecord<CoinType>>(addr);
+                    let claimed_reasons = &claim_record.claimed_reasons;
+                    
+                    let k = 0;
+                    let claimed_len = vector::length(claimed_reasons);
+                    
+                    while (k < claimed_len && !already_claimed) {
+                        if (*reason == *vector::borrow(claimed_reasons, k)) {
+                            already_claimed = true;
+                        };
+                        k = k + 1;
+                    };
+                };
+                
+                // If not claimed, add to total
+                if (!already_claimed) {
+                    total = total + amount;
+                };
+                
+                j = j + 1;
+            };
+            
+            i = i + 1;
+        };
+        
+        total
+    }
+
     // Enable or disable claims
-    // Claims can only be enabled if there are sufficient funds to cover all allocations
-    public entry fun enable_claims<CoinType>(owner: &signer, enable: bool) acquires AirdropStore {
+    // Claims can only be enabled if there are sufficient funds to cover all unclaimed allocations
+    public entry fun enable_claims<CoinType>(owner: &signer, enable: bool) acquires AirdropStore, ClaimRecord {
         let owner_addr = signer::address_of(owner);
         assert!(owner_addr == @projectOwnerAdr, error::permission_denied(ENOT_OWNER));
         assert!(exists<AirdropStore<CoinType>>(@projectOwnerAdr), error::not_found(ENOT_INITIALIZED));
         
         if (enable) {
-            // Calculate total amount needed for all allocations - do this BEFORE borrowing
-            let total_needed = calculate_total_allocation<CoinType>();
+            // Calculate total amount needed for all unclaimed allocations - do this BEFORE borrowing
+            let total_needed = calculate_total_unclaimed_allocation<CoinType>();
             
             // Now we can borrow
             let airdrop_store = borrow_global_mut<AirdropStore<CoinType>>(@projectOwnerAdr);
@@ -375,6 +431,12 @@ module projectOwnerAdr::airdrop {
     #[view]
     public fun get_total_allocation<CoinType>(): u64 acquires AirdropStore {
         calculate_total_allocation<CoinType>()
+    }
+
+    // Get the total amount of unclaimed allocations
+    #[view]
+    public fun get_total_unclaimed_allocation<CoinType>(): u64 acquires AirdropStore, ClaimRecord {
+        calculate_total_unclaimed_allocation<CoinType>()
     }
 
     // Get all allocations for a user (claimed and unclaimed) with claim status
