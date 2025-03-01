@@ -1,4 +1,5 @@
-Airdrop Module with Unit Tests for Supra Blockchain
+# Airdrop Module with Unit Tests for Supra Blockchain
+Hey there developers, this is a module built for Crystara to handle our incentivised testnet here on Supra. Feel free to fork and adapt these modules to your own likings for your distributed reward events.
 
 # Function Signatures
 
