@@ -260,7 +260,7 @@ module projectOwnerAdr::airdrop {
 
     // Enable or disable claims
     // Claims can only be enabled if there are sufficient funds to cover all unclaimed allocations
-    public entry fun enable_claims<CoinType>(owner: &signer, enable: bool) acquires AirdropStore, ClaimRecord {
+    public entry fun enable_claims<CoinType>(owner: &signer, enable: bool) acquires AirdropStore {
         let owner_addr = signer::address_of(owner);
         assert!(owner_addr == @projectOwnerAdr, error::permission_denied(ENOT_OWNER));
         assert!(exists<AirdropStore<CoinType>>(@projectOwnerAdr), error::not_found(ENOT_INITIALIZED));
