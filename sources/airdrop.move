@@ -267,8 +267,9 @@ module projectOwnerAdr::airdrop {
         
         if (enable) {
             // Calculate total amount needed for all unclaimed allocations - do this BEFORE borrowing
-            let total_needed = calculate_total_unclaimed_allocation<CoinType>();
-            
+            //let total_needed = calculate_total_unclaimed_allocation<CoinType>();
+            let total_needed = 0u64;
+
             // Now we can borrow
             let airdrop_store = borrow_global_mut<AirdropStore<CoinType>>(@projectOwnerAdr);
             
